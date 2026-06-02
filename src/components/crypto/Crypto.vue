@@ -1,6 +1,6 @@
 <template>
   <div>
-    <password :passwordData="raw" v-if="showPassword"></password>
+    <password :passwordData="raw" v-if="passwordPanelVisible"></password>
     <v-textarea
         v-model="raw"
         color="teal"
@@ -73,30 +73,71 @@ export default {
     cryptoType: [
         "AES",
     ],
-    showPassword: false,
+    passwordPanelVisible: false,
     count: 0,
     cryptoObj,
     hidePassword: false,
-    hideRawText:false,
+    hideRawText: false,
+    inputsHidden: false,
+    inCooldown: false,
+    countResetTimer: null,
+    cooldownTimer: null,
   }),
   created(){
     window.c = CryptoJS
   },
+  beforeDestroy() {
+    if (this.countResetTimer) clearTimeout(this.countResetTimer)
+    if (this.cooldownTimer) clearTimeout(this.cooldownTimer)
+  },
   watch: {
     count(){
-      if (this.count > 10){
-        this.showPassword = true
-        this.decodeStr = localStorage.getItem('decodeStr')
-        this.hidePassword = true
-        this.hideRawText = true
-      }
+      if (this.inCooldown || this.count <= 10) return
+      this.toggleInputsHidden()
+      this.startCooldown()
     }
   },
   methods:{
     showPasswordAction(){
-      if (this.count === 0)
-        setTimeout(() => {this.count = 0}, 5000)
+      if (this.inCooldown) return
+      if (this.count === 0) {
+        this.countResetTimer = setTimeout(() => {
+          this.count = 0
+          this.countResetTimer = null
+        }, 5000)
+      }
       this.count = this.count + 1
+    },
+    toggleInputsHidden() {
+      if (this.countResetTimer) {
+        clearTimeout(this.countResetTimer)
+        this.countResetTimer = null
+      }
+      this.count = 0
+      if (this.inputsHidden) {
+        this.showInputs()
+      } else {
+        this.hideInputs()
+      }
+    },
+    hideInputs() {
+      this.inputsHidden = true
+      this.passwordPanelVisible = true
+      this.decodeStr = localStorage.getItem('decodeStr')
+      this.hidePassword = true
+      this.hideRawText = true
+    },
+    showInputs() {
+      this.inputsHidden = false
+      this.hidePassword = false
+      this.hideRawText = false
+    },
+    startCooldown() {
+      this.inCooldown = true
+      this.cooldownTimer = setTimeout(() => {
+        this.inCooldown = false
+        this.cooldownTimer = null
+      }, 5000)
     },
     decode(){
       this.showPasswordAction()
